@@ -178,9 +178,7 @@ Each tool interacts with the relevant database and returns structured JSON.
 
 You can include the architecture diagram like this:
 
-```md
-![CrediFlow Architecture](<./Architecture-diagram.png>)
-```
+![CrediFlow Architecture](./Architecture-diagram.png)
 
 (Use angle brackets to support filenames with spaces.)
 
