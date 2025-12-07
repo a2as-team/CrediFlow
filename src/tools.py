@@ -5,55 +5,56 @@ from datetime import datetime, timedelta
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
-from langchain_core.retrievers import BaseRetriever
+from langchain_core.runnables import RunnableParallel, RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
 load_dotenv()
 
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 
-conn_cust = sqlite3.connect('customers.db')
-cursor_cust = conn_cust.cursor()
 
-conn_trans = sqlite3.connect('transactions.db')
-cursor_trans = conn_trans.cursor()
+def make_con():
+    conn_cust = sqlite3.connect('customers.db')
+    cursor_cust = conn_cust.cursor()
 
-conn_del = sqlite3.connect('delivery.db')
-cursor_del = conn_del.cursor()
+    conn_trans = sqlite3.connect('transactions.db')
+    cursor_trans = conn_trans.cursor()
 
-conn_emi = sqlite3.connect('emi.db')
-cursor_emi = conn_emi.cursor()
+    conn_del = sqlite3.connect('delivery.db')
+    cursor_del = conn_del.cursor()
 
-cursor_emi.execute("PRAGMA table_info(emi_schedule)")
-emi_schedule_info = cursor_emi.fetchall()
-emi_schedule_columns = [row[1] for row in emi_schedule_info]
+    conn_emi = sqlite3.connect('emi.db')
+    cursor_emi = conn_emi.cursor()
+    return cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi
 
 
-def hash_password(pw: str) -> bytes:
-    return bcrypt.hashpw(pw.encode(), bcrypt.gensalt())
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def login(cust_id, password):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT password_hash FROM customer_logins WHERE customer_id=?", (cust_id,))
     row = cursor_cust.fetchone()
     if row and bcrypt.checkpw(password.encode(), row[0].encode()):
-        return json.dumps({"status": "success", "customer_id": cust_id})
-    return json.dumps({"status": "failed"})
+        return True
+    return False
 
 
 def signup(name, phone, email, password):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT email FROM customer_logins WHERE email=?", (email,))
     if cursor_cust.fetchone():
-        return json.dumps({"status": "email_exists", "message": "Email already registered"})
+        return True
 
     cursor_cust.execute(
         "SELECT customer_id FROM customers ORDER BY customer_id DESC LIMIT 1")
     last = cursor_cust.fetchone()
     next_id = f"CUST{(int(last[0][4:]) + 1 if last else 1):03d}"
-
-    pw_hash = hash_password(password).decode()
+    pw_hash = hash_password(password)
 
     try:
         cursor_cust.execute("INSERT INTO customer_logins VALUES (?, ?, ?, ?)",
@@ -63,13 +64,14 @@ def signup(name, phone, email, password):
                             (next_id, name, f"CARD{next_id[-3:]}"))
 
         conn_cust.commit()
-        return json.dumps({"status": "created", "customer_id": next_id})
+        return True
     except sqlite3.IntegrityError as e:
         conn_cust.rollback()
-        return json.dumps({"status": "error", "message": str(e)})
+        return False
 
 
 def fetch_details(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT * FROM customers WHERE customer_id=?", (cust_id,))
     cust = cursor_cust.fetchone()
@@ -86,6 +88,7 @@ def fetch_details(cust_id):
 
 
 def block_account(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_trans.execute(
         "SELECT current_due FROM billing_dues WHERE customer_id=?", (cust_id,))
     dues = cursor_trans.fetchall()
@@ -106,6 +109,7 @@ def block_account(cust_id):
 
 
 def request_card(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT card_id FROM customers WHERE customer_id=?", (cust_id,))
     card_id = cursor_cust.fetchone()[0]
@@ -123,6 +127,7 @@ def request_card(cust_id):
 
 
 def delivery_status(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT card_id FROM customers WHERE customer_id=?", (cust_id,))
     card_id = cursor_cust.fetchone()[0]
@@ -135,6 +140,7 @@ def delivery_status(cust_id):
 
 
 def transaction_details(cust_id, trans_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_trans.execute(
         "SELECT * FROM transactions WHERE customer_id=? AND txn_id=?",
         (cust_id, trans_id)
@@ -144,6 +150,7 @@ def transaction_details(cust_id, trans_id):
 
 
 def process_transaction(cust_id, card_id, amount, merchant, txn_type="purchase"):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT available_limit, card_status FROM customers WHERE customer_id=?",
         (cust_id,)
@@ -223,6 +230,7 @@ def process_transaction(cust_id, card_id, amount, merchant, txn_type="purchase")
 
 
 def pay_bill(cust_id, amount):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_trans.execute(
         "SELECT current_due FROM billing_dues WHERE customer_id=?", (cust_id,)
     )
@@ -253,6 +261,7 @@ def pay_bill(cust_id, amount):
 
 
 def emi_creation(cust_id, amount, months=12, rate=12.0):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_cust.execute(
         "SELECT available_limit FROM customers WHERE customer_id=?", (cust_id,)
     )
@@ -277,6 +286,9 @@ def emi_creation(cust_id, amount, months=12, rate=12.0):
 
     emi_amount = round(float(amount) * (1 + float(rate) /
                        100 * int(months)/12) / int(months), 2)
+    cursor_emi.execute("PRAGMA table_info(emi_schedule)")
+    emi_schedule_info = cursor_emi.fetchall()
+    emi_schedule_columns = [row[1] for row in emi_schedule_info]
 
     for i in range(months):
         due = (datetime.today() + timedelta(days=30*(i+1))).strftime("%Y-%m-%d")
@@ -315,6 +327,7 @@ def emi_creation(cust_id, amount, months=12, rate=12.0):
 
 
 def emi_pay(cust_id, loan_id, schedule_id, amount, mode="manual"):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_emi.execute(
         "SELECT * FROM emi_schedule WHERE schedule_id=? AND loan_id=?",
         (int(schedule_id), loan_id)
@@ -375,6 +388,7 @@ def emi_pay(cust_id, loan_id, schedule_id, amount, mode="manual"):
 
 
 def emi_details(cust_id, loan_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_emi.execute(
         "SELECT * FROM emi_schedule WHERE loan_id=?", (loan_id,))
     schedules = cursor_emi.fetchall()
@@ -387,6 +401,7 @@ def emi_details(cust_id, loan_id):
 
 
 def bill_details(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_trans.execute(
         "SELECT * FROM billing_dues WHERE customer_id=?", (cust_id,))
     bills = cursor_trans.fetchall()
@@ -394,6 +409,7 @@ def bill_details(cust_id):
 
 
 def bank_statement(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_trans.execute(
         "SELECT * FROM transactions WHERE customer_id=?", (cust_id,))
     transactions = cursor_trans.fetchall()
@@ -406,6 +422,7 @@ def bank_statement(cust_id):
 
 
 def create_alert(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_emi.execute(
         "SELECT loan_id, due_date FROM emi_schedule "
         "WHERE status='pending' AND loan_id IN (SELECT loan_id FROM loan_master WHERE customer_id=?)",
@@ -416,6 +433,7 @@ def create_alert(cust_id):
 
 
 def collection_alert(cust_id):
+    cursor_cust, cursor_trans, cursor_del, cursor_emi, conn_cust, conn_del, conn_trans, conn_emi = make_con()
     cursor_emi.execute(
         "SELECT loan_id, amount_paid FROM emi_payments "
         "WHERE status='success' AND loan_id IN (SELECT loan_id FROM loan_master WHERE customer_id=?)",
@@ -426,32 +444,52 @@ def collection_alert(cust_id):
 
 
 def RAG_query(question, db):
-    emb = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_store = FAISS.load_local("faiss_store", emb)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+    vector_store = FAISS.load_local(
+        "faiss_store",
+        embeddings,
+        allow_dangerous_deserialization=True
+    )
+
     retriever = vector_store.as_retriever(
-        search_type="similarity", search_kwargs={"k": 20})
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.4)
-    prompt_template = PromptTemplate(
-        input_variables=["user_question"],
+        search_type="similarity",
+        search_kwargs={"k": 5}
+    )
+
+    prompt = PromptTemplate(
+        input_variables=["context", "user_question"],
         template="""
-        You are a helpful banking assistant. Your users are customers seeking assistance related to banking terms, policies, and procedures. 
+        You are a helpful banking assistant. Users are asking about banking terms, policies, and procedures.
 
-        - Answer questions **accurately and clearly** based on banking knowledge.
-        - If the question is **irrelevant or outside banking**, respond with: "I am not aware of this."
-        - Keep answers professional and concise.
+        - Answer accurately and clearly.
+        - If the question is outside banking, reply "I am not aware of this."
+        - Keep the answer concise and professional.
 
-        User question: {user_question}
+        Context:
+        {context}
 
-        Your response:
+        Question:
+        {user_question}
+
+        Answer:
         """
     )
 
-    retrieval_qa = BaseRetriever.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": prompt_template}
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-pro",
+        temperature=0.3
     )
-    result = retrieval_qa.invoke({"query": question})
-    return result["result"]
+
+    # Build the RAG pipeline
+    rag_chain = (
+        {
+            "context": retriever,
+            "user_question": RunnablePassthrough()
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    return rag_chain.invoke(question)
