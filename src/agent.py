@@ -59,7 +59,7 @@ root_agent = Agent(
         NOTE: 1. Use the Context Customer ID to call `fetch_details` or `transaction_details` first if you need to find specific loan_IDs or transaction_IDs.
         1. Carefully read the user's query and identify which function(s) are needed. Only use those functions.
         2. Map the user's request to the correct function parameters. Ask for missing parameters if necessary.
-        3.Use customer_id as parameter.
+        3.Use customer_id as parameter. Don't ask for each and every parameter only important others are given in the tables.
         4. Generate a function call in JSON format with accurate parameter values.
         5. After calling the function, use the result to provide a helpful response to the user.
 
@@ -133,44 +133,20 @@ async def main_async():
         session_service=session_service,
     )
 
-    print(
-        f"\nWelcome, {USER_ID}! (Type 'logout', 'exit', or 'quit' to end session)")
-    print("-" * 50)
+    query = input(f"\n{USER_ID}: ")
+    print("...Agent is thinking...", file=sys.stderr)
 
-    # --- 2. INTERACTION LOOP ---
-    while True:
-        try:
-            query = input(f"\n{USER_ID}: ")
-            query = query.strip()
-        except EOFError:
-            break
+    user_prompt = f"""User Query: "{query}" """
+    content = types.Content(
+        role="user",
+        parts=[types.Part(text=user_prompt)],
+    )
 
-        # --- 3. LOGOUT CONDITION ---
-        if query.lower() in ["logout", "exit", "quit"]:
-            print("Logging out...")
-            # Optional: Delete the session from memory if you want a fresh start next time
-            # await session_service.delete_session(session_id=SESSION_ID)
-            print("Session ended. Goodbye!")
-            break
-
-        if not query:
-            continue
-
-        print("...Agent is thinking...", file=sys.stderr)
-
-        # Prepare content
-        user_prompt = f"""User Query: "{query}" """
-        content = types.Content(
-            role="user",
-            parts=[types.Part(text=user_prompt)],
-        )
-
-        # Call Agent with the SAME Session ID
-        final_response_string = await call_agent_async(
-            runner, USER_ID, SESSION_ID, content
-        )
-
-        print(f"Agent: {final_response_string}")
+    # Call Agent with the SAME Session ID
+    final_response_string = await call_agent_async(
+        runner, USER_ID, SESSION_ID, content
+    )
+    print(f"Agent: {final_response_string}")
 
 if __name__ == "__main__":
     asyncio.run(main_async())
