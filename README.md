@@ -1,51 +1,66 @@
 # CrediFlow
 
-CrediFlow is an intelligent banking assistant built with Google Gemini, LangChain, and Streamlit. It provides a conversational interface for users to manage banking operations such as transactions, bill payments, EMI management, card services, delivery tracking, and knowledge-based queries through a Retrieval-Augmented Generation (RAG) system.
+CrediFlow is an intelligent conversational banking assistant powered by **Google Gemini**, **LangChain**, and **Streamlit**.
+It enables users to perform banking operations such as transactions, bill payments, EMI management, card services, delivery tracking, and knowledge-based queries using a **Retrieval-Augmented Generation (RAG)** system.
+
+---
 
 ## Features
 
 ### Core Capabilities
-- Secure login and signup system using hashed credentials.
-- Conversational banking agent powered by `gemini-2.5-flash` and Google ADK.
-- Retrieval-Augmented Generation (RAG) for answering banking-related knowledge queries.
-- Transaction processing, refunds, and billing updates.
-- EMI creation, schedule tracking, and EMI payments.
-- Block and request credit cards.
-- Track card delivery status.
-- Fetch bank statements, bills, dues, and customer details.
-- Persistent user sessions via Google ADK's `InMemorySessionService`.
+
+* Secure signup and login using hashed credentials.
+* Conversational banking assistant built with `gemini-2.5-flash` and Google ADK.
+* RAG-based knowledge querying with FAISS and Google Generative AI embeddings.
+* Process transactions, issue refunds, and update billing.
+* Create EMIs, track schedules, and pay EMI installments.
+* Block or request credit cards.
+* Track card delivery status.
+* Retrieve customer profiles, bank statements, dues, and bill details.
+* Persistent sessions using Google ADK’s `InMemorySessionService`.
 
 ### Frontend Interface
-- Built with Streamlit.
-- Dark theme UI with custom styling.
-- Chat-style interaction for user-agent messages.
-- Voice input support included in the `app_with_voice.py` version.
 
-````
+* Built using Streamlit with a custom dark theme.
+* Chat-style UI for seamless interaction.
+* Optional voice-enabled interface using `streamlit-mic-recorder`.
+
+---
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd <project-folder>
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd <project-folder>
 ```
 
-2. Install dependencies:
+### 2. Install dependencies
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-3. Set up environment variables:
-   Create a `.env` file containing:
+### 3. Configure environment variables
 
-   ```
-   GOOGLE_API_KEY=your_api_key_here
-   GOOGLE_GENAI_USE_VERTEXAI=FALSE
-   ```
+Create a `.env` file:
 
-4. Ensure the SQLite database files (`customers.db`, `transactions.db`, `delivery.db`, `emi.db`) exist and follow the expected schema.
+```
+GOOGLE_API_KEY=your_api_key_here
+GOOGLE_GENAI_USE_VERTEXAI=FALSE
+```
+
+### 4. Prepare databases
+
+Ensure the following SQLite database files exist and follow the expected schema:
+
+* `customers.db`
+* `transactions.db`
+* `delivery.db`
+* `emi.db`
+
+---
 
 ## Running the Application
 
@@ -61,80 +76,125 @@ streamlit run app.py
 streamlit run app_with_voice.py
 ```
 
-### Command-line agent (optional)
+### Command-line Agent (optional)
 
 ```bash
 python agent.py
 ```
 
+---
+
 ## RAG Module
 
-The RAG component uses:
+The RAG pipeline uses:
 
-* FAISS vector store
-* Google Generative AI embeddings (`models/embedding-001`)
-* `Gemini 2.5 flash` for answer generation
+* **FAISS vector store** for semantic search
+* **Google Generative AI embeddings** (`models/embedding-001`)
+* **Gemini 2.5 Flash** for context-aware answer generation
 
-Knowledge base files must be pre-ingested into `faiss_store`.
+Before use, ingest your knowledge base into:
+
+```
+faiss_store/
+```
+
+---
 
 ## Session Handling
 
-Sessions are created per user using:
+CrediFlow manages individual user conversations using:
 
 * Google ADK `Runner`
 * `InMemorySessionService`
-* Customer ID used as the unique session key
+* Customer ID as the session key
 
-Each message includes a context header with the active customer ID to ensure accurate tool usage.
+Every message includes a context header containing the active customer ID to ensure correct tool routing and database operations.
+
+---
 
 ## Database Structure
 
-The application relies on four SQLite databases:
+CrediFlow uses four SQLite databases:
 
-* `customers.db`
-* `transactions.db`
-* `delivery.db`
-* `emi.db`
+### 1. `customers.db`
 
-These support:
+Stores:
 
-* Customer profiles and card details
-* Billing dues and transactions
-* Card delivery records
-* EMI schedules, payments, and loan metadata
+* Customer profiles
+* Account details
+* Card metadata
 
-## Agent Tooling
+### 2. `transactions.db`
 
-The agent uses the following tools defined in `tools.py`:
+Stores:
 
-* `fetch_details`
-* `transaction_details`
-* `bank_statement`
-* `bill_details`
-* `process_transaction`
-* `pay_bill`
-* `emi_creation`
-* `emi_details`
-* `emi_pay`
-* `block_account`
-* `delivery_status`
-* `request_card`
-* `create_alert`
-* `collection_alert`
-* `RAG_query`
+* Transaction logs
+* Refunds
+* Billing history
 
-Each tool interacts with the appropriate SQLite database and returns JSON-formatted responses.
+### 3. `delivery.db`
+
+Stores:
+
+* Card shipping and delivery information
+
+### 4. `emi.db`
+
+Stores:
+
+* EMI creation data
+* Schedules and due dates
+* Payment logs
+
+---
+
+## Agent Tools
+
+The agent uses tools defined in `tools.py`, each mapped to a real banking operation.
+
+| Tool Name             | Purpose                               |
+| --------------------- | ------------------------------------- |
+| `fetch_details`       | Retrieve customer profile information |
+| `transaction_details` | Fetch transaction logs                |
+| `bank_statement`      | Generate bank statements              |
+| `bill_details`        | Retrieve billing dues                 |
+| `process_transaction` | Perform bank transfers                |
+| `pay_bill`            | Process bill payments                 |
+| `emi_creation`        | Create new EMIs                       |
+| `emi_details`         | View EMI schedules                    |
+| `emi_pay`             | Pay EMI installments                  |
+| `block_account`       | Block cards/accounts                  |
+| `delivery_status`     | Check card delivery status            |
+| `request_card`        | Request new cards                     |
+| `create_alert`        | Create reminders                      |
+| `collection_alert`    | Notify about overdue payments         |
+| `RAG_query`           | Perform knowledge-based RAG search    |
+
+Each tool interacts with the relevant database and returns structured JSON.
+
+---
+
+## Architecture
+
+You can include the architecture diagram like this:
+
+```md
+![CrediFlow Architecture](<./Architecture-diagram.png>)
+```
+
+(Use angle brackets to support filenames with spaces.)
+
+---
 
 ## Notes
 
-* The application relies on Google Gemini models and requires a valid API key.
-* For voice input, install `streamlit-mic-recorder`.
-* Conversation sessions persist across reloads until sign out.
+* Requires a valid Google Gemini API key.
+* Install `streamlit-mic-recorder` for voice-enabled features.
+* Sessions persist until the user signs out.
+
+---
 
 ## License
 
-This project is licensed under the MIT License.
-
-![CrediFlow Architecture](./Architecture diagram.png)
-
+This project is licensed under the **MIT License**.
 
