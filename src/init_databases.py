@@ -1,4 +1,5 @@
 import sqlite3
+import bcrypt
 
 
 def run_sql(db_name, sql_commands):
@@ -10,7 +11,11 @@ def run_sql(db_name, sql_commands):
     print(f"Database created: {db_name}")
 
 
-customers_sql = """
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+customers_sql = f"""
 DROP TABLE IF EXISTS customer_logins;
 DROP TABLE IF EXISTS customers;
 
@@ -22,18 +27,18 @@ CREATE TABLE customer_logins (
 );
 
 INSERT INTO customer_logins VALUES
-("CUST001", "9000000001", "rahul.singh@example.com", "hash_pw_rahul"),
-("CUST002", "9000000002", "neha.sharma@example.com", "hash_pw_neha"),
-("CUST003", "9000000003", "arjun.mehta@example.com", "hash_pw_arjun"),
-("CUST004", "9000000004", "priya.verma@example.com", "hash_pw_priya"),
-("CUST005", "9000000005", "amit.jain@example.com", "hash_pw_amit"),
-("CUST006", "9000000006", "sara.khan@example.com", "hash_pw_sara"),
-("CUST007", "9000000007", "vikram.rao@example.com", "hash_pw_vikram"),
-("CUST008", "9000000008", "kavita.yadav@example.com", "hash_pw_kavita"),
-("CUST009", "9000000009", "dev.patel@example.com", "hash_pw_dev"),
-("CUST010", "9000000010", "isha.malhotra@example.com", "hash_pw_isha"),
-("CUST011", "9000000011", "varun.sethi@example.com", "hash_pw_varun"),
-("CUST012", "9000000012", "meera.nair@example.com", "hash_pw_meera");
+("CUST001", "9000000001", "rahul.singh@example.com", "{hash_password("rahul123")}"),
+("CUST002", "9000000002", "neha.sharma@example.com", "{hash_password("neha123")}"),
+("CUST003", "9000000003", "arjun.mehta@example.com", "{hash_password("arjun123")}"),
+("CUST004", "9000000004", "priya.verma@example.com", "{hash_password("priya123")}"),
+("CUST005", "9000000005", "amit.jain@example.com", "{hash_password("amit123")}"),
+("CUST006", "9000000006", "sara.khan@example.com", "{hash_password("sara123")}"),
+("CUST007", "9000000007", "vikram.rao@example.com", "{hash_password("vikram123")}"),
+("CUST008", "9000000008", "kavita.yadav@example.com", "{hash_password("kavita123")}"),
+("CUST009", "9000000009", "dev.patel@example.com", "{hash_password("dev123")}"),
+("CUST010", "9000000010", "isha.malhotra@example.com", "{hash_password("isha123")}"),
+("CUST011", "9000000011", "varun.sethi@example.com", "{hash_password("varun123")}"),
+("CUST012", "9000000012", "meera.nair@example.com", "{hash_password("meera123")}");
 
 CREATE TABLE customers (
     customer_id TEXT PRIMARY KEY,
@@ -59,6 +64,7 @@ INSERT INTO customers VALUES
 ("CUST012", "Meera Nair", "CARD012", 60000, 40000, "active");
 """
 
+
 delivery_sql = """
 DROP TABLE IF EXISTS card_delivery;
 
@@ -71,11 +77,11 @@ CREATE TABLE card_delivery (
 );
 
 INSERT INTO card_delivery VALUES
-("CARD001", "BlueDart", "BD123001", "Delivered", "2025-01-10"),
+("CARD001", "BlueDart", "BD123001", "Ordered", "2025-01-10"),
 ("CARD002", "Delhivery", "DLV223002", "Out for Delivery", "2025-01-14"),
 ("CARD003", "EcomExpress", "ECX553003", "In Transit", "2025-01-17"),
 ("CARD004", "BlueDart", "BD183004", "Shipped", "2025-01-18"),
-("CARD005", "Delhivery", "DLV443005", "Delivered", "2025-01-08"),
+("CARD005", "Delhivery", "DLV443005", "Ordered", "2025-01-08"),
 ("CARD006", "EcomExpress", "ECX983006", "Returned", "2025-01-12"),
 ("CARD007", "BlueDart", "BD663007", "Delivered", "2025-01-11"),
 ("CARD008", "Delhivery", "DLV223008", "Shipped", "2025-01-19"),
@@ -84,6 +90,7 @@ INSERT INTO card_delivery VALUES
 ("CARD011", "Delhivery", "DLV128011", "Delayed", "2025-01-20"),
 ("CARD012", "BlueDart", "BD999012", "Delivered", "2025-01-09");
 """
+
 
 transactions_sql = """
 DROP TABLE IF EXISTS transactions;
@@ -195,6 +202,71 @@ INSERT INTO billing_dues VALUES
 ("CUST012", 9000, 1500, "2025-02-10");
 """
 
+emi_sql = """
+DROP TABLE IF EXISTS emi_payments;
+DROP TABLE IF EXISTS emi_schedule;
+DROP TABLE IF EXISTS loan_master;
+
+-- Core loan table
+CREATE TABLE loan_master (
+    loan_id TEXT PRIMARY KEY,
+    customer_id TEXT,
+    principal_amount REAL,
+    annual_rate REAL,
+    tenure_months INTEGER,
+    start_date TEXT,
+    status TEXT
+);
+
+INSERT INTO loan_master VALUES
+("LOAN001", "CUST001", 50000, 14.0, 12, "2025-01-01", "active"),
+("LOAN002", "CUST003", 90000, 12.5, 18, "2025-01-05", "active"),
+("LOAN003", "CUST005", 150000, 10.0, 24, "2025-01-10", "active"),
+("LOAN004", "CUST008", 60000, 15.0, 9, "2025-01-12", "active"),
+("LOAN005", "CUST010", 120000, 11.0, 24, "2025-01-15", "closed");
+
+-- EMI schedule table
+CREATE TABLE emi_schedule (
+    schedule_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_id TEXT,
+    due_date TEXT,
+    emi_amount REAL,
+    principal_component REAL,
+    interest_component REAL,
+    status TEXT  -- pending, paid, overdue
+);
+
+INSERT INTO emi_schedule (loan_id, due_date, emi_amount, principal_component, interest_component, status) VALUES
+("LOAN001", "2025-02-01", 4500, 3900, 600, "pending"),
+("LOAN001", "2025-03-01", 4500, 3950, 550, "pending"),
+("LOAN001", "2025-04-01", 4500, 3980, 520, "pending"),
+
+("LOAN002", "2025-02-05", 5500, 4800, 700, "pending"),
+("LOAN002", "2025-03-05", 5500, 4850, 650, "pending"),
+
+("LOAN003", "2025-02-10", 7000, 6200, 800, "pending"),
+("LOAN003", "2025-03-10", 7000, 6250, 750, "pending"),
+
+("LOAN004", "2025-02-12", 5200, 4700, 500, "pending"),
+("LOAN004", "2025-03-12", 5200, 4750, 450, "pending");
+
+-- EMI payments table
+CREATE TABLE emi_payments (
+    payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_id TEXT,
+    schedule_id INTEGER,
+    amount_paid REAL,
+    paid_date TEXT,
+    mode TEXT,
+    status TEXT  -- success, failed
+);
+
+INSERT INTO emi_payments (loan_id, schedule_id, amount_paid, paid_date, mode, status) VALUES
+("LOAN001", 1, 4500, "2025-02-01", "auto-debit", "success"),
+("LOAN003", 6, 7000, "2025-02-10", "manual", "success");
+"""
+
+run_sql("emi.db", emi_sql)
 run_sql("customers.db", customers_sql)
 run_sql("delivery.db", delivery_sql)
 run_sql("transactions.db", transactions_sql)
