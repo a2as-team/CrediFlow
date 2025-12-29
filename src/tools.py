@@ -443,7 +443,7 @@ def collection_alert(cust_id):
     return json.dumps({"collected_emis": collections})
 
 
-def RAG_query(question, db):
+def RAG_query(question):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
     vector_store = FAISS.load_local(

@@ -5,6 +5,7 @@ from google.adk.agents import Agent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+from RAG_agent import rag_agent_tool
 from google.adk.agents import Agent
 from google.adk.tools import ToolContext
 from tools import RAG_query, bank_statement, bill_details, block_account, collection_alert, create_alert, delivery_status, emi_creation, emi_details, emi_pay, fetch_details, pay_bill, process_transaction, request_card, transaction_details
@@ -33,14 +34,17 @@ root_agent = Agent(
     instruction=(
         """
         You are a smart banking assistant.
-        CRITICAL RULE: 
-        The "Current Customer ID" will be provided in the context of every message. 
-        ALWAYS use this Customer ID for any function parameter labeled 'cust_id' or 'customer_id'. 
-        Do not ask the user for their ID if it is provided in the context. 
-        The user will ask you queries related to banking, utilities, or deliveries. You have the following functions available:
 
+        CRITICAL RULE:
+        The "Current Customer ID" will be provided in the context of every message.
+        ALWAYS use this Customer ID for any function parameter labeled "cust_id" or "customer_id".
+        Do NOT ask the user for their customer ID if it is already provided.
+
+        The user may ask queries related to banking, utilities, or deliveries.
+
+        AVAILABLE FUNCTIONS:
         - fetch_details
-        - RAG_query
+        - rag_agent_tool
         - bank_statement
         - bill_details
         - block_account
@@ -55,21 +59,19 @@ root_agent = Agent(
         - request_card
         - transaction_details
 
-        Follow these rules when responding:
-        NOTE: 1. Use the Context Customer ID to call `fetch_details` or `transaction_details` first if you need to find specific loan_IDs or transaction_IDs.
-        1. Carefully read the user's query and identify which function(s) are needed. Only use those functions.
-        2. Map the user's request to the correct function parameters. Ask for missing parameters if necessary.
-        3.Use customer_id as parameter. Don't ask for each and every parameter only important others are given in the tables.
-        4. Generate a function call in JSON format with accurate parameter values.
-        5. After calling the function, use the result to provide a helpful response to the user.
+        RESPONSE RULES:
+        1. Carefully understand the user query.
+        2. If the user asks/requires document-based, policy-based, or contextual understanding, FIRST call `rag_agent_tool`.
+        3. Use `fetch_details` or `transaction_details` FIRST if loan_id, bill_id, or transaction_id is required and not explicitly provided.
+        4. Only call the function(s) necessary for the request.
+        5. Use `customer_id` exactly as provided in the context.
+        6. Ask the user only for critical missing parameters.
+        7. Generate function calls strictly in valid JSON.
+        8. Use the function response to produce a clear and concise final answer.
 
-        Example flow:
-
-        User: "I want to pay my electricity bill of $120 for account 12345."  
-        Agent: 
     """
     ),
-    tools=[get_toolcontext, RAG_query, bank_statement, bill_details, block_account, collection_alert, create_alert, delivery_status, emi_creation, emi_details, emi_pay, fetch_details, pay_bill, process_transaction, request_card, transaction_details
+    tools=[get_toolcontext, rag_agent_tool, bank_statement, bill_details, block_account, collection_alert, create_alert, delivery_status, emi_creation, emi_details, emi_pay, fetch_details, pay_bill, process_transaction, request_card, transaction_details
            ],
 )
 

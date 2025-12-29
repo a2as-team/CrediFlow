@@ -143,20 +143,15 @@ def process_login(username, password):
     if not username or not password:
         return False, "Please fill in all fields."
 
-    # Standard synchronous login check
     if login(username, password):
         cust_id = username
-
-        # We wrap ONLY the async session service calls here
         try:
-            # Check for existing sessions (Async call wrapped in sync helper)
             existing_sessions = run_async(
                 session_service.list_sessions(app_name=APP_NAME, user_id=cust_id))
 
             if existing_sessions and existing_sessions.sessions:
                 session_id = existing_sessions.sessions[0].id
             else:
-                # Create new session (Async call wrapped in sync helper)
                 new_session = run_async(session_service.create_session(
                     app_name=APP_NAME, user_id=cust_id))
                 session_id = new_session.id
@@ -185,7 +180,6 @@ def process_signup(name, phone, email, password):
 
             if row:
                 cust_id = row[0]
-                # Async session creation wrapped in sync helper
                 new_session = run_async(session_service.create_session(
                     app_name=APP_NAME, user_id=cust_id))
                 session_id = new_session.id
