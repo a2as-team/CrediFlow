@@ -1,0 +1,286 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: aditikalegaonkar/crediflow
+    source: https://github.com/aditikalegaonkar/crediflow
+    branch: main
+    commit: "66042a58"
+    scope: [src/app.py, src/RAG_agent.py, src/agent.py, src/tools.py, src/app_with_voice.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T16:54:37Z'
+    url: https://a2as.org/certified/agents/aditikalegaonkar/crediflow
+  signatures:
+    digest: sha256:0PaOGFgGXse-GW7fWVGfR_kHYaDr9P_E01XcP-blRpY
+    key: ed25519:yIFxJ1oi2wHYKxqqsmgeG9aW9xNvOmWNr2FaPastbu0
+    sig: ed25519:zYDZlmFoiZFnO5qjSZ5wAE1uKmzguoQR8P8WEtsM-3RInr9SO8ysYhqCVXQ4_ZQmvWLPtj0PijRp2Lyi1nHgDA
+
+agents:
+  rag_agent:
+    type: instance
+    models: [gemini-2.5-flash]
+    tools: [get_toolcontext, get_query, RAG_query]
+    params:
+      name: RAG_agent
+      description: A Retrieval-Augmented Generation agent for document analysis.
+      instruction: [You are a Retrieval-Augmented Generation (RAG) agent., 'Instructions:', 1. Invoke get_toolcontext to identify
+          available to get cust_ID., 2. Use get_query to know user query., 3. Retrieve information strictly related to the
+          query using the RAG_query(query) tool., 4. Answer the user query only using retrieved content., 5. Do not use external
+          knowledge or assumptions., '6. Keep the final answer concise, factual, and directly aligned with the query.']
+  root_agent:
+    type: instance
+    models: [gemini-2.5-flash]
+    tools: [get_toolcontext, rag_agent_tool, bank_statement, bill_details, block_account, collection_alert, create_alert,
+      delivery_status, emi_creation, emi_details, emi_pay, fetch_details, pay_bill, process_transaction, request_card, transaction_details]
+    params:
+      name: Banking_helper_agent
+      description: "\n        This agent is a helpful assistant that can perform banking and utility-related actions for the\
+        \ user. It can:\n        Fetch account details, bank statements, and transaction history.\n        Pay bills, create\
+        \ alerts, and manage collections.\n        Handle EMI creation, details, and payments.\n        Block accounts, request\
+        \ cards, and check delivery status.\n        The agent uses the functions provided to execute user requests accurately\
+        \ and securely, only calling the relevant functions mentioned in the user's query\n    "
+      instruction: [You are a smart banking assistant., 'CRITICAL RULE:', The "Current Customer ID" will be provided in the
+          context of every message., ALWAYS use this Customer ID for any function parameter labeled "cust_id" or "customer_id".,
+        Do NOT ask the user for their customer ID if it is already provided., 'The user may ask queries related to banking,
+          utilities, or deliveries.', 'AVAILABLE FUNCTIONS:', '- fetch_details', '- rag_agent_tool', '- bank_statement', '-
+          bill_details', '- block_account', '- collection_alert', '- create_alert', '- delivery_status', '- emi_creation',
+        '- emi_details', '- emi_pay', '- pay_bill', '- process_transaction', '- request_card', '- transaction_details', 'RESPONSE
+          RULES:', 1. Carefully understand the user query., '2. If the user asks/requires document-based, policy-based, or
+          contextual understanding, FIRST call `rag_agent_tool`.', '3. Use `fetch_details` or `transaction_details` FIRST
+          if loan_id, bill_id, or transaction_id is required and not explicitly provided.', 4. Only call the function(s) necessary
+          for the request., 5. Use `customer_id` exactly as provided in the context., 6. Ask the user only for critical missing
+          parameters., 7. Generate function calls strictly in valid JSON., 8. Use the function response to produce a clear
+          and concise final answer.]
+
+models:
+  gemini-2.5-flash:
+    type: literal
+    agents: [rag_agent, root_agent]
+
+tools:
+  bank_statement:
+    type: function
+    agents: [root_agent]
+  bill_details:
+    type: function
+    agents: [root_agent]
+  block_account:
+    type: function
+    agents: [root_agent]
+  collection_alert:
+    type: function
+    agents: [root_agent]
+  create_alert:
+    type: function
+    agents: [root_agent]
+  delivery_status:
+    type: function
+    agents: [root_agent]
+  emi_creation:
+    type: function
+    agents: [root_agent]
+  emi_details:
+    type: function
+    agents: [root_agent]
+  emi_pay:
+    type: function
+    agents: [root_agent]
+  fetch_details:
+    type: function
+    agents: [root_agent]
+  get_query:
+    type: function
+    agents: [rag_agent]
+  get_toolcontext:
+    type: function
+    agents: [rag_agent, root_agent]
+  pay_bill:
+    type: function
+    agents: [root_agent]
+  process_transaction:
+    type: function
+    agents: [root_agent]
+  rag_agent_tool:
+    type: agent
+    agents: [rag_agent, root_agent]
+    params:
+      wrapper: AgentTool
+      agent: rag_agent
+  RAG_query:
+    type: function
+    agents: [rag_agent]
+  request_card:
+    type: function
+    agents: [root_agent]
+  transaction_details:
+    type: function
+    agents: [root_agent]
+
+imports:
+  Agent: google.adk.agents.Agent
+  AgentTool: google.adk.tools.agent_tool.AgentTool
+  APP_NAME: agent.APP_NAME
+  asyncio: asyncio
+  bank_statement: tools.bank_statement
+  bcrypt: bcrypt
+  bill_details: tools.bill_details
+  block_account: tools.block_account
+  call_agent_async: agent.call_agent_async
+  ChatGoogleGenerativeAI: langchain_google_genai.ChatGoogleGenerativeAI
+  collection_alert: tools.collection_alert
+  create_alert: tools.create_alert
+  cursor_cust: tools.cursor_cust
+  datetime: datetime.datetime
+  delivery_status: tools.delivery_status
+  emi_creation: tools.emi_creation
+  emi_details: tools.emi_details
+  emi_pay: tools.emi_pay
+  FAISS: langchain_community.vectorstores.FAISS
+  fetch_details: tools.fetch_details
+  FunctionTool: google.adk.tools.FunctionTool
+  GoogleGenerativeAIEmbeddings: langchain_google_genai.GoogleGenerativeAIEmbeddings
+  InMemorySessionService: google.adk.sessions.InMemorySessionService
+  json: json
+  load_dotenv: dotenv.load_dotenv
+  login: tools.login
+  make_con: tools.make_con
+  os: os
+  pay_bill: tools.pay_bill
+  process_transaction: tools.process_transaction
+  PromptTemplate: langchain_core.prompts.PromptTemplate
+  rag_agent_tool: RAG_agent.rag_agent_tool
+  RAG_query: tools.RAG_query
+  request_card: tools.request_card
+  root_agent: agent.root_agent
+  RunnableParallel: langchain_core.runnables.RunnableParallel
+  RunnablePassthrough: langchain_core.runnables.RunnablePassthrough
+  Runner: google.adk.runners.Runner
+  session_service: agent.session_service
+  signup: tools.signup
+  speech_to_text: streamlit_mic_recorder.speech_to_text
+  sqlite3: sqlite3
+  st: streamlit
+  StrOutputParser: langchain_core.output_parsers.StrOutputParser
+  sys: sys
+  timedelta: datetime.timedelta
+  ToolContext: google.adk.tools.ToolContext
+  transaction_details: tools.transaction_details
+  types: google.genai.types
+
+functions:
+  bank_statement:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  bill_details:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  block_account:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  call_agent_async:
+    type: async
+    module: src.agent
+    args: [runner, USER_ID, SESSION_ID, content]
+  collection_alert:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  create_alert:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  delivery_status:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  emi_creation:
+    type: sync
+    module: src.tools
+    args: [cust_id, amount, months, rate]
+  emi_details:
+    type: sync
+    module: src.tools
+    args: [cust_id, loan_id]
+  emi_pay:
+    type: sync
+    module: src.tools
+    args: [cust_id, loan_id, schedule_id, amount, mode]
+  fetch_details:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  get_agent_response:
+    type: async
+    module: src.app_with_voice
+    args: [user_input]
+  get_query:
+    type: sync
+    module: src.RAG_agent
+    args: [query, tool_context]
+  get_toolcontext:
+    type: sync
+    module: src.agent
+    args: [tool_context, cust_id]
+  hash_password:
+    type: sync
+    module: src.tools
+    args: [password]
+    params:
+      returns: str
+  login:
+    type: sync
+    module: src.tools
+    args: [cust_id, password]
+  main_async:
+    type: async
+    module: src.agent
+  make_con:
+    type: sync
+    module: src.tools
+  pay_bill:
+    type: sync
+    module: src.tools
+    args: [cust_id, amount]
+  process_login:
+    type: sync
+    module: src.app_with_voice
+    args: [username, password]
+  process_signup:
+    type: sync
+    module: src.app_with_voice
+    args: [name, phone, email, password]
+  process_transaction:
+    type: sync
+    module: src.tools
+    args: [cust_id, card_id, amount, merchant, txn_type]
+  RAG_query:
+    type: sync
+    module: src.tools
+    args: [question]
+  request_card:
+    type: sync
+    module: src.tools
+    args: [cust_id]
+  run_async:
+    type: sync
+    module: src.app_with_voice
+    args: [coroutine]
+  signup:
+    type: sync
+    module: src.tools
+    args: [name, phone, email, password]
+  transaction_details:
+    type: sync
+    module: src.tools
+    args: [cust_id, trans_id]
+
+variables:
+  GOOGLE_API_KEY:
+    type: env
+    params:
+      caller: [os.environ, os.getenv]
+      path: [src.tools]
